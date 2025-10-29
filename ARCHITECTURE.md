@@ -59,7 +59,7 @@ A lean Next.js (App Router) + TypeScript application that lets authenticated adm
 - Admins
   - For simplicity, admin credentials are provided via env vars (`ADMIN_USER`, `ADMIN_PASS`). JWT is used to store a session cookie `admin_token`.
 
-## Multi-Agent Orchestration
+## Multi-Agent
 
 - Agent A — Size compliance
   - Agent roles: Ensures generated media meets expected size constraints; prefers square 1024×1024 for images.

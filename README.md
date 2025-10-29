@@ -19,7 +19,7 @@ A lean Next.js + TypeScript admin app to review user-generated prompts and media
     - `MONGODB_DB=admin_eval_db`
     - `ADMIN_USER=admin`
     - `ADMIN_PASS=admin`
-    - `JWT_SECRET=change_me_strong_secret`
+    - `JWT_SECRET=secret`
 
 - Install & run
   - `npm install`
@@ -40,7 +40,7 @@ Update these in `.env` for production use.
 - Serves thumbnails/videos via a local media proxy.
 - Runs a deterministic multi-agent evaluation per item:
   - Size compliance (image dimensions heuristic)
-  - Subject adherence (prompt vs. filename keywords)
+  - Subject adherence (prompt vs. brands keywords)
   - Creativity (prompt features)
   - Mood consistency (mood word presence)
   - Aggregates into an end score (weighted average)
@@ -54,6 +54,9 @@ Update these in `.env` for production use.
 4) Click "Ingest CSV" (reads the CSV and populates `images`).
 5) Click "Evaluate" per item to run agents and save results.
 6) Sort by score to compare outputs.
+
+## Demo Video
+- https://www.loom.com/share/4a220893fe53460d8aa9d47fe23233d4
 
 ## Tech Stack
 

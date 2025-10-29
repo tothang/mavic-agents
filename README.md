@@ -48,7 +48,7 @@ Update these in `.env` for production use.
 
 ## Typical flow
 
-1) Start MongoDB (`docker compose up -d`).
+1) Start MongoDB (`docker compose up -d`) (If your MongoDB is running locally, skip this step).
 2) `npm install && npm run dev`.
 3) Login at http://localhost:3000 with `admin/admin`.
 4) Click "Ingest CSV" (reads the CSV and populates `images`).

@@ -20,6 +20,7 @@ A lean Next.js + TypeScript admin app to review user-generated prompts and media
     - `ADMIN_USER=admin`
     - `ADMIN_PASS=admin`
     - `JWT_SECRET=secret`
+    - `LLM_API_KEY=sk-proj-`
 
 - Install & run
   - `npm install`

@@ -1,4 +1,3 @@
-import { setTimeout as delay } from "timers/promises";
 import { ChatOpenAI } from "@langchain/openai";
 import { SystemMessage, HumanMessage } from "@langchain/core/messages";
 
@@ -9,13 +8,6 @@ type ScoreResult = { score: number; rationale?: string };
 const DEFAULT_BASE_URL = process.env.LLM_BASE_URL || "https://api.openai.com/v1";
 const DEFAULT_MODEL = process.env.LLM_MODEL || "gpt-4o-mini";
 const API_KEY = process.env.LLM_API_KEY || process.env.OPENAI_API_KEY || "";
-
-async function fetchWithTimeout(url: string, opts: RequestInit, ms: number): Promise<Response> {
-  const c = new AbortController();
-  const id = setTimeout(() => c.abort(), ms);
-  try { return await fetch(url, { ...opts, signal: c.signal }); }
-  finally { clearTimeout(id as unknown as number); }
-}
 
 export async function scoreWithLLM(name: string, criteria: string, input: Record<string, unknown>, options?: { timeoutMs?: number; retries?: number; }): Promise<ScoreResult> {
   const timeoutMs = options?.timeoutMs ?? 1200;
@@ -28,7 +20,6 @@ export async function scoreWithLLM(name: string, criteria: string, input: Record
     temperature: 0,
     maxRetries: retries,
     configuration: { baseURL: DEFAULT_BASE_URL }
-    // Some runtimes support timeout here; upstream withTimeout calls also guard us.
   } as any);
 
   const system = new SystemMessage("You are a strict scorer. Return only a compact JSON with numeric 'score' 0-100 and short 'rationale'.");
@@ -52,7 +43,6 @@ export async function scoreWithLLM(name: string, criteria: string, input: Record
     const rationale = typeof parsed?.rationale === "string" ? parsed.rationale : undefined;
     return { score, rationale };
   } catch (e) {
-    // Final failure; let caller's withTimeout fallback handle it
     throw e instanceof Error ? e : new Error("LLM scoring failed");
   }
 }

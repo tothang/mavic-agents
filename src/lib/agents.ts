@@ -163,9 +163,9 @@ export async function evaluateEntry(rootDir: string, relPath: string, mediaType:
   const abs = path.join(rootDir, relPath);
   const [size, subject, creativity, mood] = await Promise.all([
     withTimeout(agentSizeCompliance(abs, mediaType), 2000, 50),
-    withTimeout(agentSubjectAdherence(prompt, brand, abs, mediaType), 12000, 50),
-    withTimeout(agentCreativity(prompt, abs, mediaType), 12000, 50),
-    withTimeout(agentMoodConsistency(prompt, abs, mediaType), 12000, 50)
+    withTimeout(agentSubjectAdherence(prompt, brand, abs, mediaType), 120000, 50),
+    withTimeout(agentCreativity(prompt, abs, mediaType), 120000, 50),
+    withTimeout(agentMoodConsistency(prompt, abs, mediaType), 120000, 50)
   ]);
   const endScore = await aggregateScores({ size, subject, creativity, mood });
   return { sizeCompliance: size, subjectAdherence: subject, creativity, moodConsistency: mood, endScore };

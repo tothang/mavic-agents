@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { apiEvaluate, apiIngest, apiListImages } from "@/services/api";
+import { apiEvaluate, apiIngest, apiListImages, apiClearEvaluations } from "@/services/api";
 import ScoreBadge from "@/components/ScoreBadge";
 import Badge from "@/components/Badge";
 import type { Item } from "@/types";
@@ -22,6 +22,16 @@ export default function AdminItemsPage() {
   useEffect(() => {
     load();
   }, [sortBy, channel]);
+
+  async function refresh() {
+    setLoading(true);
+    try {
+      await apiClearEvaluations();
+    } catch {
+      // ignore deletion errors, still reload
+    }
+    await load();
+  }
 
   async function evaluate(id: string) {
     const prev = items.slice();
@@ -78,7 +88,7 @@ export default function AdminItemsPage() {
           <button
             className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-100 rounded-md px-3 py-2 disabled:opacity-50"
             disabled={loading}
-            onClick={load}
+            onClick={refresh}
           >
             {loading ? "Loading..." : "Refresh"}
           </button>

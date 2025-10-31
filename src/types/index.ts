@@ -53,6 +53,15 @@ export interface EvaluationDoc {
   createdAt: string;
 }
 
+export type BrandInfo = {
+  brandName?: string;
+  brandDescription?: string;
+  brandVision?: string;
+  brandVoice?: string;
+  colors?: string;
+  style?: string;
+};
+
 export interface AdminUser {
   _id?: string;
   username: string;

@@ -31,3 +31,8 @@ export async function apiListImages(params: ListParams = {}) {
   const res = await fetch(`/api/images?${q.toString()}`);
   return handle(res);
 }
+
+export async function apiClearEvaluations() {
+  const res = await fetch("/api/evaluations/clear", { method: "POST" });
+  return handle(res);
+}

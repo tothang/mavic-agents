@@ -63,32 +63,83 @@ A lean Next.js (App Router) + TypeScript application that lets authenticated adm
 
 - Agent A — Size compliance
   - Agent roles: Ensures generated media meets expected size constraints; prefers square 1024×1024 for images.
-  - Orchestration: Reads dimensions via `image-size`; runs with a short timeout and falls back to 50 on error/timeout; videos default to 50.
-  - Scoring formula: Similarity-to-target mapped to 0–100. For images: `1 - min(1, (|w-1024|+|h-1024|)/(1024+1024))`, scaled to 0–100 and rounded. Videos → 50.
+  - Orchestration: For videos, uses an LLM (LangChain `ChatOpenAI`) with a text prompt to rate adaptability to 1024×1024; for images, sends numeric dimensions to the LLM. On failure, falls back to a deterministic dimension heuristic. Short timeouts and clamped 0–100 scores.
+  - Scoring: LLM returns strict JSON `{ score: 0-100 }`. Fallback heuristic computes closeness to 1024×1024.
+
+  ```mermaid
+  flowchart TD
+    A[Input\nmediaType, absPath] -->|video| VLLM[LLM text scoring\nsize_compliance_video]
+    A -->|image| DIM[Read dimensions]
+    DIM --> ILLM[LLM text scoring\nsize_compliance]
+    ILLM -->|ok| OUT1[Score 0-100]
+    ILLM -->|fail| HEUR[Heuristic closeness to 1024x1024]
+    VLLM -->|ok| OUT1
+    VLLM -->|fail| DEF[Default 50]
+    HEUR --> OUT1
+    DEF --> OUT1
+  ```
 
 - Agent B — Subject adherence
-  - Agent roles: Checks that media content aligns with the core prompt subject(s).
-  - Orchestration: Tokenizes prompt and filename, computes normalized keyword overlap; short timeout with fallback 50.
-  - Scoring formula: Overlap ratio × 100. Prompt tokens built by lowercasing, splitting on non-letters, removing stopwords `["a","an","the","and","or","of","to","in","on","for","with"]`; filename tokens from basename (without extension) using same rules. Score = `100 * |prompt∩file| / max(1, |prompt|)`.
+  - Agent roles: Checks that the media content aligns with the core prompt subject(s) and brand guidelines.
+  - Orchestration: Uses an LLM with brand context (name, description, vision, voice, colors, style). If the media is an image, first attempts a vision-enabled LLM call by sending the image (as data URL) with the prompt + brand; on failure, falls back to text-only LLM; finally, to a lightweight heuristic.
+  - Scoring: LLM responds with `{ score: 0-100 }`. Heuristic fallback leverages brandName token overlap.
+
+  ```mermaid
+  flowchart TD
+    BIN[Input\nprompt, brand, mediaType, absPath] -->|image| V1[Vision LLM\nsubject_adherence_image]
+    BIN -->|not image or fail| T1[Text LLM\nsubject_adherence]
+    V1 -->|ok| OUT2[Score 0-100]
+    V1 -->|fail| T1
+    T1 -->|ok| OUT2
+    T1 -->|fail| H1[Heuristic brandName overlap]
+    H1 --> OUT2
+  ```
 
 - Agent C — Creativity
-  - Agent roles: Estimates novelty/expressiveness of the prompt.
-  - Orchestration: Analyzes prompt length, punctuation density, curated adjective presence; short timeout with fallback 50.
-  - Scoring formula (weights sum to 1): `0.4*lenScore + 0.3*punctScore + 0.3*adjScore` where:
-    - `lenScore = clamp(promptWords/25, 0, 1)`
-    - `punctScore = clamp(punctCount/6, 0, 1)` counts of `[,.:;!?]`
-    - `adjScore = clamp(adjHits/3, 0, 1)` using adjectives list `["vivid","cinematic","surreal","whimsical","moody","ethereal","gritty","dramatic","playful","minimalist"]`
-    - Final score = above × 100 (rounded).
+  - Agent roles: Estimates the creativity/originality and evocative quality.
+  - Orchestration: If the media is an image, attempts a vision LLM evaluation with the image and prompt; otherwise uses a text LLM. On failure, falls back to a deterministic heuristic (length/punctuation/adjectives).
+  - Scoring: LLM returns `{ score: 0-100 }`; heuristic computes a weighted score and clamps to 0–100.
+
+  ```mermaid
+  flowchart TD
+    CIN[Input\nprompt, mediaType, absPath] -->|image| V2[Vision LLM\ncreativity_image]
+    CIN -->|not image or fail| T2[Text LLM\ncreativity]
+    V2 -->|ok| OUT3[Score 0-100]
+    V2 -->|fail| T2
+    T2 -->|ok| OUT3
+    T2 -->|fail| H2[Heuristic\nlen/punct/adj]
+    H2 --> OUT3
+  ```
 
 - Agent D — Mood consistency
-  - Agent roles: Verifies that tone/mood in the prompt is represented.
-  - Orchestration: Detects mood words and variety; short timeout with fallback 50.
-  - Scoring formula: Mood presence ratio × 100 with diminishing returns for variety. Mood lexicon: `["happy","joyful","serene","calm","dramatic","dark","melancholic","hopeful","tense","mysterious","romantic","nostalgic","energetic"]`. Score = `min(1, hits/3) * 100`.
+  - Agent roles: Verifies that the intended tone/mood is clearly and consistently represented.
+  - Orchestration: If the media is an image, attempts a vision LLM evaluation with the image and prompt; otherwise uses a text LLM. On failure, falls back to a deterministic mood-word presence heuristic.
+  - Scoring: LLM returns `{ score: 0-100 }`; heuristic uses mood lexicon counts with diminishing returns.
+
+  ```mermaid
+  flowchart TD
+    MIN[Input\nprompt, mediaType, absPath] -->|image| V3[Vision LLM\nmood_consistency_image]
+    MIN -->|not image or fail| T3[Text LLM\nmood_consistency]
+    V3 -->|ok| OUT4[Score 0-100]
+    V3 -->|fail| T3
+    T3 -->|ok| OUT4
+    T3 -->|fail| H3[Heuristic\nmood words]
+    H3 --> OUT4
+  ```
 
 - Aggregation
   - Agent roles: Combines criteria into a single score the UI can sort by.
-  - Orchestration: `evaluateImageById` runs agents (parallel where possible), collects results, persists to `evaluations`, UI shows latest.
+  - Orchestration: `evaluateImageById` runs agents in parallel with per-agent timeouts and fallbacks, collects results, persists to `evaluations`, UI shows latest.
   - Scoring formula: Deterministic weighted average — `endScore = 0.25*size + 0.35*subject + 0.20*creativity + 0.20*mood` (weights tunable).
+
+  ```mermaid
+  flowchart LR
+    S1[Size] --> W[Weighted\nAggregation]
+    S2[Subject] --> W
+    S3[Creativity] --> W
+    S4[Mood] --> W
+    W --> E[endScore]
+  ```
 
 ## Trade-offs
 
